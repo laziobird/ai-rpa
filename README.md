@@ -12,7 +12,7 @@
 
 # 实现原理
 
-<img src="rpa.jpg">
+<img src="docs/images/rpa.jpg">
 
 # Quick start
 
@@ -62,7 +62,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 - 任务完成
 **重要:** 保证准确性和效率`
 ```
-<video src="docs/video/自动生成RPA程序简单版本3分钟.mov" controls="controls" width="800" height="600">
+<video src="docs/video/rpa-github.mov" controls="controls" width="800" height="600">
   您的浏览器不支持 video 标签
 </video>
 
@@ -74,7 +74,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 
 
 ## \[ English | [中文](README_zh.md) \]
-👋 Join our [WeChat](wechat.JPG) 
+👋 Join our [WeChat](docs/images/wechat.JPG) 
 
 
 
