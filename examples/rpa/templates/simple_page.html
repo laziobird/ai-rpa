@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI自动化助手</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #07C160;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 120px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            background-color: #07C160;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        
+        button:disabled {
+            background-color: #9ED8B5;
+        }
+        
+        .steps {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .step {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-left: 3px solid #ddd;
+        }
+        
+        .step.completed {
+            border-left-color: #07C160;
+            background-color: rgba(7, 193, 96, 0.05);
+        }
+        
+        .step.in-progress {
+            border-left-color: orange;
+            background-color: rgba(255, 165, 0, 0.05);
+        }
+        
+        .step.error {
+            border-left-color: #e74c3c;
+            background-color: rgba(231, 76, 60, 0.05);
+        }
+        
+        .result-container {
+            margin-top: 20px;
+        }
+        
+        .code-container {
+            margin-top: 20px;
+            background-color: #f6f8fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+        }
+        
+        .log-container {
+            margin-top: 20px;
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .demo-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            background-color: white;
+            font-size: 16px;
+        }
+        
+        .demo-container {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI自动化助手</h1>
+    
+    <div class="demo-container">
+        <label for="demo-select">选择演示案例：</label>
+        <select id="demo-select" class="demo-select">
+            <option value="">-- 请选择演示案例 --</option>
+            <option value="baidu">百度搜索案例</option>
+            <option value="ceshiren">测试人网站案例</option>
+        </select>
+    </div>
+    
+    <textarea id="task-input" placeholder="请输入操作指令，例如：
+### Step 1: 打开网站
+- 访问[百度](https://www.baidu.com)
+### Step 2: 搜索内容
+- 在搜索框输入'人工智能'并点击搜索"></textarea>
+    
+    <button id="run-btn">运行任务</button>
+    
+    <div id="steps" class="steps" style="display:none">
+        <h3>任务进度</h3>
+        <div id="step1" class="step">步骤1: 初始化任务</div>
+        <div id="step2" class="step">步骤2: 读取日志内容</div>
+        <div id="step3" class="step">步骤3: 生成提示词</div>
+        <div id="step4" class="step">步骤4: 生成代码</div>
+        <div id="step5" class="step">步骤5: 保存代码到本地</div>
+    </div>
+    
+    <div id="log-container" class="log-container" style="display:none"></div>
+    
+    <div id="result-container" class="result-container" style="display:none">
+        <h3>执行结果</h3>
+        <div id="result-content"></div>
+    </div>
+    
+    <div id="code-container" class="code-container" style="display:none">
+        <h3>生成的代码</h3>
+        <pre id="code-content"></pre>
+        <button id="run-rpa-btn" style="display:none">运行RPA脚本</button>
+    </div>
+    
+    <div id="output-container" style="display:none">
+        <h3>RPA脚本运行结果</h3>
+        <pre id="output-content"></pre>
+    </div>
+    
+    <script>
+        const taskInput = document.getElementById('task-input');
+        const runBtn = document.getElementById('run-btn');
+        const stepsDiv = document.getElementById('steps');
+        const logContainer = document.getElementById('log-container');
+        const resultContainer = document.getElementById('result-container');
+        const resultContent = document.getElementById('result-content');
+        const codeContainer = document.getElementById('code-container');
+        const codeContent = document.getElementById('code-content');
+        const demoSelect = document.getElementById('demo-select');
+        
+        // 演示案例内容
+        const demoContent = {
+            'baidu': `### Step 1: 打开网站
+- 访问[百度](https://www.baidu.com)
+### Step 2: 搜索内容
+- 在搜索框输入'人工智能'并点击搜索
+- 任务完成`,'ceshiren': `### Step 1: Navigate to the Website
+- Open [ceshiren](https://ceshiren.com/).
+- 输入"web自动化"查询 
+### Step 2: 打开搜索结果的第一个链接
+- 任务完成
+**重要:** 保证准确性和效率`
+        };
+        
+        // 下拉菜单变化时更新文本框内容
+        demoSelect.addEventListener('change', function() {
+            const selectedValue = this.value;
+            if (selectedValue && demoContent[selectedValue]) {
+                taskInput.value = demoContent[selectedValue];
+            }
+        });
+        
+        // 获取步骤元素
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+        const step4 = document.getElementById('step4');
+        const step5 = document.getElementById('step5');
+        
+        let websocket = null;
+        
+        // 添加日志
+        function addLog(message) {
+            const now = new Date();
+            logContainer.innerHTML += `<div>[${now.toLocaleTimeString()}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 更新步骤状态
+        function updateStep(stepElement, status, details) {
+            stepElement.className = 'step ' + status;
+            if (details) {
+                stepElement.textContent = stepElement.textContent.split(':')[0] + ': ' + details;
+            }
+            addLog(`${stepElement.textContent} - ${status}`);
+        }
+        
+        // 初始化WebSocket
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            websocket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            
+            websocket.onopen = function(e) {
+                addLog('WebSocket连接已建立');
+            };
+            
+            websocket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    addLog(`收到消息: ${JSON.stringify(data)}`);
+                    
+                    // 存储连接ID
+                    if (data.connection_id) {
+                        websocket.connectionId = data.connection_id;
+                    }
+                    
+                    // 处理步骤更新
+                    if (data.step) {
+                        const stepElement = document.getElementById(`step${data.step}`);
+                        if (stepElement) {
+                            updateStep(stepElement, data.status, data.details || data.message);
+                        }
+                    }
+                } catch(e) {
+                    addLog(`消息解析错误: ${e.message}`);
+                }
+            };
+            
+            websocket.onclose = function(event) {
+                addLog('WebSocket连接已关闭');
+            };
+            
+            websocket.onerror = function(error) {
+                addLog(`WebSocket错误: ${error.message || '未知错误'}`);
+            };
+        }
+        
+        // 页面加载时初始化WebSocket
+        initWebSocket();
+        
+        runBtn.addEventListener('click', async function() {
+            const task = taskInput.value.trim();
+            
+            if (!task) {
+                alert('请输入任务描述');
+                return;
+            }
+            
+            // 显示进度和日志区域
+            stepsDiv.style.display = 'block';
+            logContainer.style.display = 'block';
+            logContainer.innerHTML = '';
+            
+            // 重置所有步骤状态
+            [step1, step2, step3, step4, step5].forEach(step => {
+                step.className = 'step';
+            });
+            
+            // 隐藏之前的结果
+            resultContainer.style.display = 'none';
+            codeContainer.style.display = 'none';
+            document.getElementById('run-rpa-btn').style.display = 'none';
+            document.getElementById('output-container').style.display = 'none';
+            
+            // 禁用按钮
+            runBtn.disabled = true;
+            
+            // 重新连接WebSocket(如果已关闭)
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                initWebSocket();
+                // 等待连接建立
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            // 获取连接ID
+            const connectionId = websocket?.connectionId;
+            
+            // 启动进度动画
+            const progressAnimationInterval = setupProgressAnimation();
+            
+            try {
+                updateStep(step1, 'in-progress', '初始化任务...');
+                
+                // 调用API
+                const response = await fetch('/run-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        task: task,
+                        connection_id: connectionId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`服务返回错误: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // 显示结果
+                resultContent.textContent = data.result;
+                resultContainer.style.display = 'block';
+                
+                // 处理生成的代码
+                if (data.generated_code) {
+                    // 显示代码
+                    codeContent.textContent = data.generated_code;
+                    codeContainer.style.display = 'block';
+                    
+                    // 执行步骤5: 保存代码到本地文件
+                    await saveCodeToLocal(data.generated_code);
+                } else {
+                    updateStep(step5, 'error', '没有生成代码');
+                }
+                
+                addLog('系统', '任务完成！');
+                
+            } catch (error) {
+                addLog('系统', `错误: ${error.message}`);
+                alert(`执行失败: ${error.message}`);
+                
+                // 更新失败的步骤状态
+                if (step1.classList.contains('in-progress')) {
+                    updateStep(step1, 'error', '初始化任务失败');
+                }
+            } finally {
+                // 清除进度动画定时器
+                clearInterval(progressAnimationInterval);
+                
+                // 启用按钮
+                runBtn.disabled = false;
+            }
+        });
+
+        function setupProgressAnimation() {
+            // 获取当前正在处理的步骤元素
+            const getActiveStep = () => {
+                for (let i = 1; i <= 5; i++) {
+                    const stepEl = document.getElementById(`step${i}`);
+                    if (stepEl && stepEl.classList.contains('in-progress')) {
+                        return { number: i, element: stepEl };
+                    }
+                }
+                return null;
+            };
+            
+            // 设置定时器，每10秒更新一次进度
+            const progressInterval = setInterval(() => {
+                const activeStep = getActiveStep();
+                if (activeStep) {
+                    const { number, element } = activeStep;
+                    
+                    // 添加动画点以显示活动
+                    const currentText = element.textContent;
+                    // 正则表达式移除可能存在的动画点
+                    const baseText = currentText.replace(/\.{1,9}$/, '');
+                    
+                    // 生成1到3个点的动画
+                    const dots = '.'.repeat((Math.floor(Date.now() / 1000) % 9) + 1);
+                    element.textContent = `${baseText}${dots}`;
+                    
+                    // 记录进度更新
+                    addLog(`步骤${number}进度更新: ${baseText}`);
+                } else {
+                    // 如果没有活动的步骤，可以考虑停止定时器
+                    if (document.querySelectorAll('.step.completed').length === 5 ||
+                        document.querySelectorAll('.step.error').length > 0) {
+                        clearInterval(progressInterval);
+                    }
+                }
+            }, 10000); // 每10秒更新一次进度
+            
+            // 返回定时器ID，以便后续清除
+            return progressInterval;
+        }
+
+        async function saveCodeToLocal(code) {
+            try {
+                updateStep(step5, 'in-progress', '正在保存代码到本地...');
+                
+                // 提取Python代码段
+                let pythonCode = code;
+                
+                // 寻找```python和```之间的代码段
+                const pythonCodeRegex = /```python\s*([\s\S]*?)```/;
+                const match = code.match(pythonCodeRegex);
+                
+                if (match && match[1]) {
+                    // 如果找到了匹配的代码段，使用它
+                    pythonCode = match[1].trim();
+                    addLog('已从输出中提取Python代码段');
+                } else {
+                    addLog('未找到Python代码段标记，将使用完整输出内容');
+                }
+                
+                // 调用API保存代码到本地文件
+                const response = await fetch('/save-and-run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: pythonCode })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`服务返回错误: ${response.status}`);
+                }
+                
+                // 更新步骤状态
+                updateStep(step5, 'completed', '代码已保存到本地文件 demo.py');
+                
+                // 显示"运行RPA"按钮
+                const runRpaBtn = document.getElementById('run-rpa-btn');
+                runRpaBtn.style.display = 'block';
+                
+                // 添加运行RPA按钮的点击事件
+                runRpaBtn.onclick = async function() {
+                    try {
+                        addLog('正在运行RPA脚本...');
+                        runRpaBtn.disabled = true;
+                        runRpaBtn.textContent = '运行中...';
+                        
+                        const runResponse = await fetch('/save-and-run', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ code: pythonCode })
+                        });
+                        
+                        if (!runResponse.ok) {
+                            throw new Error(`运行RPA失败: ${runResponse.status}`);
+                        }
+                        
+                        const runResult = await runResponse.json();
+                        
+                        // 显示运行结果
+                        const outputContainer = document.getElementById('output-container');
+                        const outputContent = document.getElementById('output-content');
+                        outputContainer.style.display = 'block';
+                        outputContent.textContent = runResult.output || runResult.message || '未返回运行结果';
+                        
+                        addLog(`RPA脚本运行${runResult.status === 'success' ? '成功' : '失败'}: ${runResult.message}`);
+                    } catch (error) {
+                        addLog(`运行RPA脚本失败: ${error.message}`);
+                        alert(`运行RPA脚本失败: ${error.message}`);
+                    } finally {
+                        runRpaBtn.disabled = false;
+                        runRpaBtn.textContent = '运行RPA脚本';
+                    }
+                };
+                
+                return true;
+            } catch (error) {
+                updateStep(step5, 'error', `保存代码失败: ${error.message}`);
+                addLog(`保存代码失败: ${error.message}`);
+                return false;
+            }
+        }
+    </script>
+</body>
+</html> 
