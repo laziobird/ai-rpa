@@ -19,7 +19,7 @@
 With pip (Python>=3.11):
 
 ```bash
-pip install browser-user
+pip install .
 ```
 
 install playwright:
